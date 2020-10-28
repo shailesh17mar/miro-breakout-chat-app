@@ -5,6 +5,7 @@
 	import type {
 		MessageHandler,
 		EmitHandler,
+		User,
 		Message as MessageInterface,
 		ChatController,
 		ChatSettings,
@@ -12,21 +13,40 @@
 
 	export let chatFactory: (settings: ChatSettings) => ChatController
 	export let roomId: string
-	export let name: string
+	export let token: string
+	export let boardId: string
+	export let user: User
 
 	let newMessageText: string = ''
 
 	let chatController: ChatController = null
 
 	let messages: Array<MessageInterface> = []
-	const handleNewMessage: MessageHandler = (text, author) => {
-		messages = [...messages, {text, author, timestamp: new Date()}]
+	const handleNewMessage: MessageHandler = (text, authorId, author) => {
+		let addAsNewMsg = true;
+		const currentTimestamp = new Date()
+		let currentMessage = {
+			message: [text],
+			timestamp: currentTimestamp,
+			author,
+			authorId
+		}
+		const lastMessage = messages.slice(-1)[0];
+		if (lastMessage && lastMessage.authorId === currentMessage.authorId) {
+				addAsNewMsg = false;
+				lastMessage.message.push(text);
+				delete currentMessage.message; 
+				messages[messages.length -1 ] = Object.assign(lastMessage, currentMessage); 
+		}
+		if (addAsNewMsg) {
+			messages = [...messages, currentMessage]
+		}
 	}
 
 	const handleMessageSend = () => {
 		if (!newMessageText) return
 
-		chatController.sendMessage(newMessageText)
+		chatController.sendMessage(newMessageText, user)
 
 		newMessageText = ''
 
@@ -34,7 +54,8 @@
 	}
 
 	onMount(() => {
-		chatController = chatFactory({roomId, name, messageHandler: handleNewMessage})
+		chatController = chatFactory({roomId, user, token, boardId, messageHandler: handleNewMessage})
+		console.log('mounted')
 	})
 </script>
 
@@ -74,7 +95,7 @@
 	</div>
 	<div class="sidebar__body">
 		{#each messages as message}
-			<Message {message} />
+			<Message {message} currentUserId={user.id} />
 		{/each}
 	</div>
 	<div class="sidebar__footer">
